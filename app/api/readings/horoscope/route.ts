@@ -7,6 +7,7 @@ import {
   parseJsonBody
 } from "@/lib/api";
 import { generateHoroscope } from "@/lib/ai";
+import { AuthError, deductCredit, requireAuthenticatedUser } from "@/lib/auth";
 import { normalizeZodiacSign } from "@/lib/zodiac";
 
 export async function POST(request: Request) {
@@ -32,9 +33,19 @@ export async function POST(request: Request) {
       return jsonError("Invalid zodiac sign.");
     }
 
+    const user = await requireAuthenticatedUser(request);
+
     const result = await generateHoroscope({ sign });
-    return jsonOk(result);
-  } catch {
+
+    if (result.mode === "ai") {
+      await deductCredit(user.id, 1);
+    }
+
+    return jsonOk({ ...result, credits: result.mode === "ai" ? user.credits - 1 : user.credits });
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return jsonError(err.message, err.status, err.code as "UNAUTHORIZED");
+    }
     return jsonError("Unable to generate horoscope.", 500, "SERVER_ERROR");
   }
 }

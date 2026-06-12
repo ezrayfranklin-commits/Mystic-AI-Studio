@@ -71,6 +71,7 @@ export default async function AdminPage() {
                   <tr>
                     <th className="px-5 py-3">Email</th>
                     <th className="px-5 py-3">Role</th>
+                    <th className="px-5 py-3">Credits</th>
                     <th className="px-5 py-3">Created</th>
                     <th className="px-5 py-3">Updated</th>
                   </tr>
@@ -80,6 +81,7 @@ export default async function AdminPage() {
                     <tr key={storedUser.id}>
                       <td className="px-5 py-4 font-medium text-white">{storedUser.email}</td>
                       <td className="px-5 py-4 capitalize text-stone-300">{storedUser.role}</td>
+                      <td className="px-5 py-4 font-semibold text-brass">{storedUser.credits}</td>
                       <td className="px-5 py-4 text-stone-300">
                         {new Date(storedUser.createdAt).toLocaleString()}
                       </td>

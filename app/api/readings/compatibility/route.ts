@@ -8,6 +8,7 @@ import {
   parseJsonBody
 } from "@/lib/api";
 import { generateCompatibilityReading } from "@/lib/ai";
+import { AuthError, deductCredit, requireAuthenticatedUser } from "@/lib/auth";
 import { normalizeZodiacSign } from "@/lib/zodiac";
 
 export async function POST(request: Request) {
@@ -59,6 +60,8 @@ export async function POST(request: Request) {
       return jsonError("Invalid second birth date.");
     }
 
+    const user = await requireAuthenticatedUser(request);
+
     const result = await generateCompatibilityReading({
       nameA,
       nameB,
@@ -68,8 +71,15 @@ export async function POST(request: Request) {
       birthDateB
     });
 
-    return jsonOk(result);
-  } catch {
+    if (result.mode === "ai") {
+      await deductCredit(user.id, 1);
+    }
+
+    return jsonOk({ ...result, credits: result.mode === "ai" ? user.credits - 1 : user.credits });
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return jsonError(err.message, err.status, err.code as "UNAUTHORIZED");
+    }
     return jsonError("Unable to generate compatibility reading.", 500, "SERVER_ERROR");
   }
 }

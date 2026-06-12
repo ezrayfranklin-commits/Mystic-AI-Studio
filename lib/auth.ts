@@ -17,6 +17,7 @@ type StoredAuthUser = {
   email: string;
   passwordHash: string;
   role: UserRole;
+  credits: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -36,6 +37,7 @@ export type PublicAuthUser = {
   id: string;
   email: string;
   role: UserRole;
+  credits: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -112,6 +114,7 @@ export async function registerUser(emailInput: unknown, passwordInput: unknown) 
     email,
     passwordHash: await hashPassword(password),
     role: "user",
+    credits: 10,
     createdAt: now,
     updatedAt: now
   };
@@ -230,6 +233,7 @@ function toPublicUser(user: StoredAuthUser): PublicAuthUser {
     id: user.id,
     email: user.email,
     role: user.role,
+    credits: user.credits ?? 0,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };
@@ -303,6 +307,7 @@ async function ensureAdminAccount(store: AuthStore) {
       email: configuredAdminEmail,
       passwordHash: await hashPassword(configuredAdminPassword),
       role: "admin",
+      credits: 100,
       createdAt: now,
       updatedAt: now
     });
@@ -389,16 +394,69 @@ function isStoredAuthUser(value: unknown): value is StoredAuthUser {
   }
 
   const user = value as Partial<StoredAuthUser>;
-  return (
+  if (
     typeof user.id === "string" &&
     isValidEmail(user.email || "") &&
     typeof user.passwordHash === "string" &&
     (user.role === "admin" || user.role === "user") &&
     typeof user.createdAt === "string" &&
     typeof user.updatedAt === "string"
-  );
+  ) {
+    // Backfill credits for old records that lack it
+    if (typeof user.credits !== "number") {
+      (user as StoredAuthUser).credits = user.role === "admin" ? 100 : 10;
+    }
+    return true;
+  }
+  return false;
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
+}
+
+// ── Credits helpers ────────────────────────────────────────────
+
+export async function deductCredit(userId: string, amount = 1) {
+  const store = await loadAuthStore();
+  const user = store.users.find((u) => u.id === userId);
+  if (!user) {
+    throw new AuthError("User not found.", 404, "AUTH_ERROR");
+  }
+  if (user.credits < amount) {
+    throw new AuthError(
+      `Not enough credits. You need ${amount} but only have ${user.credits}.`,
+      402,
+      "INSUFFICIENT_CREDITS"
+    );
+  }
+  user.credits -= amount;
+  user.updatedAt = new Date().toISOString();
+  await writeAuthStore(store);
+  return user.credits;
+}
+
+export async function addCredits(targetUserId: string, amount: number) {
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 99999) {
+    throw new AuthError("Invalid credit amount.", 400, "BAD_REQUEST");
+  }
+  const store = await loadAuthStore();
+  const user = store.users.find((u) => u.id === targetUserId);
+  if (!user) {
+    throw new AuthError("Target user not found.", 404, "AUTH_ERROR");
+  }
+  user.credits += amount;
+  user.updatedAt = new Date().toISOString();
+  await writeAuthStore(store);
+  return user.credits;
+}
+
+export async function requireAuthenticatedUser(request: Request) {
+  const cookieHeader = request.headers.get("cookie");
+  const token = getCookieValue(cookieHeader, AUTH_COOKIE_NAME);
+  const user = await getUserFromSessionToken(token);
+  if (!user) {
+    throw new AuthError("Sign in to use this feature.", 401, "UNAUTHORIZED");
+  }
+  return user;
 }

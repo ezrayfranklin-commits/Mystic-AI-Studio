@@ -7,6 +7,7 @@ import {
   parseJsonBody
 } from "@/lib/api";
 import { generateDreamReading } from "@/lib/ai";
+import { AuthError, deductCredit, requireAuthenticatedUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -29,9 +30,19 @@ export async function POST(request: Request) {
       return jsonError("Add a few more details about the dream.");
     }
 
+    const user = await requireAuthenticatedUser(request);
+
     const result = await generateDreamReading({ dream });
-    return jsonOk(result);
-  } catch {
+
+    if (result.mode === "ai") {
+      await deductCredit(user.id, 1);
+    }
+
+    return jsonOk({ ...result, credits: result.mode === "ai" ? user.credits - 1 : user.credits });
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return jsonError(err.message, err.status, err.code as "UNAUTHORIZED");
+    }
     return jsonError("Unable to interpret dream.", 500, "SERVER_ERROR");
   }
 }

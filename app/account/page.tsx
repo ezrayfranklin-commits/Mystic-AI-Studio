@@ -40,6 +40,14 @@ export default async function AccountPage() {
               <dd className="mt-2 capitalize text-white">{user.role}</dd>
             </div>
             <div>
+              <dt className="font-semibold text-stone-400">Credits</dt>
+              <dd className="mt-2 text-white">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-brass/15 px-2.5 py-0.5 text-base font-semibold text-brass">
+                  ✦ {user.credits}
+                </span>
+              </dd>
+            </div>
+            <div>
               <dt className="font-semibold text-stone-400">Created</dt>
               <dd className="mt-2 text-white">{new Date(user.createdAt).toLocaleString()}</dd>
             </div>

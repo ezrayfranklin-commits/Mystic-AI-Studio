@@ -9,6 +9,7 @@ import {
   parseJsonBody
 } from "@/lib/api";
 import { generateTarotReading } from "@/lib/ai";
+import { AuthError, deductCredit, requireAuthenticatedUser } from "@/lib/auth";
 import type { DrawnTarotCard, SpreadType } from "@/types/reading";
 
 const spreadTypes: SpreadType[] = [
@@ -69,14 +70,23 @@ export async function POST(request: Request) {
       return jsonError("The selected spread received the wrong number of cards.");
     }
 
+    const user = await requireAuthenticatedUser(request);
+
     const result = await generateTarotReading({
       question: cleanLongText(body.question, 800),
       spreadType,
       cards
     });
 
-    return jsonOk(result);
-  } catch {
+    if (result.mode === "ai") {
+      await deductCredit(user.id, 1);
+    }
+
+    return jsonOk({ ...result, credits: result.mode === "ai" ? user.credits - 1 : user.credits });
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return jsonError(err.message, err.status, err.code as "UNAUTHORIZED");
+    }
     return jsonError("Unable to generate tarot reading.", 500, "SERVER_ERROR");
   }
 }
