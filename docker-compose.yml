@@ -1,0 +1,44 @@
+services:
+  mystic-oracle:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3008}
+        NEXT_PUBLIC_BRAND_NAME: ${NEXT_PUBLIC_BRAND_NAME:-Mystic AI Studio}
+        SOURCE_REPO_URL: ${SOURCE_REPO_URL:-}
+    image: mystic-oracle:local
+    container_name: mystic-oracle
+    ports:
+      - "${APP_PORT:-3008}:3008"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    volumes:
+      - auth-data:/app/.data
+    pids_limit: 256
+    mem_limit: 512m
+    cpus: 1.0
+    environment:
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-25000}
+      AUTH_SECRET: ${AUTH_SECRET:-local-docker-auth-secret-change-before-production-2026}
+      AUTH_DATA_DIR: ${AUTH_DATA_DIR:-/app/.data}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@mystic.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeMe-Admin-2026!}
+      LAUNCH_HELP_WEBHOOK_URL: ${LAUNCH_HELP_WEBHOOK_URL:-}
+      LAUNCH_HELP_WEBHOOK_SECRET: ${LAUNCH_HELP_WEBHOOK_SECRET:-}
+      ALLOW_LOCAL_LEAD_LOG: ${ALLOW_LOCAL_LEAD_LOG:-true}
+      SOURCE_REPO_URL: ${SOURCE_REPO_URL:-}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3008}
+      NEXT_PUBLIC_BRAND_NAME: ${NEXT_PUBLIC_BRAND_NAME:-Mystic AI Studio}
+    restart: unless-stopped
+
+volumes:
+  auth-data:
